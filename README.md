@@ -38,6 +38,37 @@ sudo dnf install cbonsai
 
 ### MacOS
 
+You may install `cbonsai` using [Homebrew](https://brew.sh):
+
+```bash
+brew install cbonsai
+```
+
+You may also install `cbonsai` using [MacPorts](https://www.macports.org). Simply install MacPorts, then issue the following commands:
+
+```bash
+sudo port selfupdate
+sudo port install cbonsai
+```
+
+### Manual
+
+You'll need to have a working `ncursesw`/`ncurses` library.
+
+#### Debian-based
+
+```bash
+sudo apt install libncursesw5-dev
+```
+
+#### Fedora
+
+```bash
+sudo dnf install ncursesw5-devel
+```
+
+#### macOS
+
 Follow the [Manual](#manual) installation, but if you install `ncurses` via homebrew, you may see this:
 
 ```
@@ -48,29 +79,6 @@ For pkg-config to find ncurses you may need to set:
 You may need to follow these instructions before running `make install`.
 
 If you are having trouble installing on MacOS, try reading [this issue](https://gitlab.com/jallbrit/cbonsai/-/issues/10).
-
-#### MacPorts
-
-On macOS, you may also install `cbonsai` using [MacPorts](https://www.macports.org). Simply install MacPorts, then issue the following commands:
-
-```bash
-sudo port selfupdate
-sudo port install cbonsai
-```
-
-### Manual
-
-You'll need to have a working `ncursesw` library. If you're on a `Debian`-based system, you can install `ncursesw` like so:
-
-```bash
-sudo apt install libncursesw5-dev
-```
-
-Or on Fedora:
-
-```bash
-sudo dnf install ncursesw5-devel
-```
 
 Once dependencies are met, then install:
 
@@ -105,6 +113,9 @@ Options:
   -b, --base=INT         ascii-art plant base to use, 0 is none
   -c, --leaf=LIST        list of comma-delimited strings randomly chosen
                            for leaves
+  -k, --color=LIST       list of 4 comma-delimited color indices (0 to 256) for
+                           each of dark leaves, dark wood, light leaves, and
+                           light wood, in that order [default: 2,3,10,11]
   -M, --multiplier=INT   branch multiplier; higher -> more
                            branching (0-20) [default: 5]
   -L, --life=INT         life; higher -> more growth (0-200) [default: 32]

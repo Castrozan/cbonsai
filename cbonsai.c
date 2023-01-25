@@ -14,6 +14,12 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define COLOR_WOOD_BRIGHT COLOR_PAIR(4)
+#define COLOR_WOOD_DARK COLOR_PAIR(2)
+#define COLOR_LEAF_BRIGHT COLOR_PAIR(3)
+#define COLOR_LEAF_DARK COLOR_PAIR(1)
+#define COLOR_TEXT COLOR_PAIR(5)
+
 enum branchType {trunk, shootLeft, shootRight, dying, dead};
 
 struct config {
@@ -36,6 +42,7 @@ struct config {
 
 	char* message;
 	char* leaves[64];
+	int colors[4];
 	char* saveFile;
 	char* loadFile;
 };
@@ -142,7 +149,10 @@ void printHelp(void) {
 	        "  -m, --message=STR      attach message next to the tree\n"
 	        "  -b, --base=INT         ascii-art plant base to use, 0 is none\n"
 	        "  -c, --leaf=LIST        list of comma-delimited strings randomly chosen\n"
-	        "                           for leaves\n"
+	        "                           for leaves [default: &]\n"
+	        "  -k, --color=LIST       list of 4 comma-delimited color indices (0 to 256) for\n"
+	        "                           each of dark leaves, dark wood, light leaves, and\n"
+	        "                           light wood, in that order [default: 2,3,10,11]\n"
 	        "  -M, --multiplier=INT   branch multiplier; higher -> more\n"
 	        "                           branching (0-20) [default: 5]\n"
 	        "  -L, --life=INT         life; higher -> more growth (0-200) [default: 32]\n"
@@ -159,15 +169,15 @@ void drawBase(WINDOW* baseWin, int baseType) {
 	// draw base art
 	switch(baseType) {
 	case 1:
-		wattron(baseWin, A_BOLD | COLOR_PAIR(8));
+		wattron(baseWin, A_BOLD | COLOR_TEXT);
 		wprintw(baseWin, "%s", ":");
-		wattron(baseWin, COLOR_PAIR(2));
+		wattron(baseWin, COLOR_LEAF_BRIGHT);
 		wprintw(baseWin, "%s", "___________");
-		wattron(baseWin, COLOR_PAIR(11));
+		wattron(baseWin, COLOR_WOOD_BRIGHT);
 		wprintw(baseWin, "%s", "./~~~\\.");
-		wattron(baseWin, COLOR_PAIR(2));
+		wattron(baseWin, COLOR_LEAF_BRIGHT);
 		wprintw(baseWin, "%s", "___________");
-		wattron(baseWin, COLOR_PAIR(8));
+		wattron(baseWin, COLOR_TEXT);
 		wprintw(baseWin, "%s", ":");
 
 		mvwprintw(baseWin, 1, 0, "%s", " \\                           / ");
@@ -177,15 +187,15 @@ void drawBase(WINDOW* baseWin, int baseType) {
 		wattroff(baseWin, A_BOLD);
 		break;
 	case 2:
-		wattron(baseWin, COLOR_PAIR(8));
+		wattron(baseWin, COLOR_TEXT);
 		wprintw(baseWin, "%s", "(");
-		wattron(baseWin, COLOR_PAIR(2));
+		wattron(baseWin, COLOR_LEAF_BRIGHT);
 		wprintw(baseWin, "%s", "---");
-		wattron(baseWin, COLOR_PAIR(11));
+		wattron(baseWin, COLOR_WOOD_BRIGHT);
 		wprintw(baseWin, "%s", "./~~~\\.");
-		wattron(baseWin, COLOR_PAIR(2));
+		wattron(baseWin, COLOR_LEAF_BRIGHT);
 		wprintw(baseWin, "%s", "---");
-		wattron(baseWin, COLOR_PAIR(8));
+		wattron(baseWin, COLOR_TEXT);
 		wprintw(baseWin, "%s", ")");
 
 		mvwprintw(baseWin, 1, 0, "%s", " (           ) ");
@@ -259,18 +269,18 @@ void chooseColor(enum branchType type, WINDOW* treeWin) {
 	case trunk:
 	case shootLeft:
 	case shootRight:
-		if (rand() % 2 == 0) wattron(treeWin, A_BOLD | COLOR_PAIR(11));
-		else wattron(treeWin, COLOR_PAIR(3));
+		if (rand() % 2 == 0) wattron(treeWin, A_BOLD | COLOR_WOOD_BRIGHT);
+		else wattron(treeWin, COLOR_WOOD_DARK);
 		break;
 
 	case dying:
-		if (rand() % 10 == 0) wattron(treeWin, A_BOLD | COLOR_PAIR(2));
-		else wattron(treeWin, COLOR_PAIR(2));
+		if (rand() % 10 == 0) wattron(treeWin, A_BOLD | COLOR_LEAF_BRIGHT);
+		else wattron(treeWin, COLOR_LEAF_BRIGHT);
 		break;
 
 	case dead:
-		if (rand() % 3 == 0) wattron(treeWin, A_BOLD | COLOR_PAIR(10));
-		else wattron(treeWin, COLOR_PAIR(10));
+		if (rand() % 3 == 0) wattron(treeWin, A_BOLD | COLOR_LEAF_DARK);
+		else wattron(treeWin, COLOR_LEAF_DARK);
 		break;
 	}
 }
@@ -536,7 +546,7 @@ void createMessageWindows(struct ncursesObjects *objects, char* message) {
 	objects->messageWin = newwin(boxHeight, boxWidth + 1, maxY * 0.7, maxX * 0.7);
 
 	// draw box
-	wattron(objects->messageBorderWin, COLOR_PAIR(8) | A_BOLD);
+	wattron(objects->messageBorderWin, COLOR_TEXT | A_BOLD);
 	wborder(objects->messageBorderWin, '|', '|', '-', '-', '+', '+', '+', '+');
 
 	// create message panels
@@ -624,7 +634,7 @@ int drawMessage(const struct config *conf, struct ncursesObjects *objects, char*
 
 		if (conf->verbosity >= 2) {
 			updateScreen(1);
-			mvwprintw(objects->treeWin, 11, 5, "word buffer: |% 15s|", wordBuffer);
+			mvwprintw(objects->treeWin, 11, 5, "word buffer: |%-15s|", wordBuffer);
 		}
 		if (thisChar == '\0') break;	// quit when we reach the end of the message
 		i++;
@@ -648,21 +658,32 @@ void init(const struct config *conf, struct ncursesObjects *objects) {
 		int bg = COLOR_BLACK;
 		if (use_default_colors() != ERR) bg = -1;
 
-		// define color pairs
-		for(int i=0; i<16; i++){
-			init_pair(i, i, bg);
+		// initialize color pairs
+		int warnedAlready = 0;
+		for(int id = 1; id <= 4; id++) {
+			int color_id = conf->colors[id-1];
+
+			// restrict color pallete in non-256color terminals
+			if (COLORS < 256) {
+				init_pair(id, color_id % 8, bg);
+			} else {
+				init_pair(id, color_id, bg);
+			}
+
+			if (!warnedAlready && COLORS < 256 && color_id >= 8) {
+				endwin();
+				printf("Warning: defaulting to 8-color support.\n");
+				warnedAlready = 1;
+				doupdate();
+			}
 		}
 
-		// restrict color pallete in non-256color terminals (e.g. screen or linux)
+		// initialize COLOR_TEXT pair
 		if (COLORS < 256) {
-			init_pair(8, 7, bg);	// gray will look white
-			init_pair(9, 1, bg);
-			init_pair(10, 2, bg);
-			init_pair(11, 3, bg);
-			init_pair(12, 4, bg);
-			init_pair(13, 5, bg);
-			init_pair(14, 6, bg);
-			init_pair(15, 7, bg);
+			init_pair(5, 7, bg);
+		}
+		else {
+			init_pair(5, 8, bg);
 		}
 	} else {
 		printf("%s", "Warning: terminal does not have color support.\n");
@@ -722,6 +743,7 @@ void printstdscr(void) {
 
 			// enable correct color
 			if (fg == 0) printf("\033[0m");
+			else if (fg >= 16) printf("\033[38;5;%him", fg);
 			else if (fg <= 7) printf("\033[3%him", fg);
 			else if (fg >= 8) printf("\033[9%him", fg - 8);
 
@@ -799,6 +821,7 @@ int main(int argc, char* argv[]) {
 
 		.message = NULL,
 		.leaves = {0},
+		.colors = {0, 0, 0, 0},
 		.saveFile = createDefaultCachePath(),
 		.loadFile = createDefaultCachePath(),
 	};
@@ -812,6 +835,7 @@ int main(int argc, char* argv[]) {
 		{"message", required_argument, NULL, 'm'},
 		{"base", required_argument, NULL, 'b'},
 		{"leaf", required_argument, NULL, 'c'},
+		{"colors", required_argument, NULL, 'k'},
 		{"multiplier", required_argument, NULL, 'M'},
 		{"life", required_argument, NULL, 'L'},
 		{"print", required_argument, NULL, 'p'},
@@ -826,11 +850,12 @@ int main(int argc, char* argv[]) {
 	struct ncursesObjects objects = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 	char leavesInput[128] = "&";
+	char colorsInput[128] = "2,3,10,11";
 
 	// parse arguments
 	int option_index = 0;
 	int c;
-	while ((c = getopt_long(argc, argv, ":lt:iw:Sm:b:c:M:L:ps:C:W:vh", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, ":lt:iw:Sm:b:c:k:M:L:ps:C:W:vh", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'l':
 			conf.live = 1;
@@ -888,6 +913,10 @@ int main(int argc, char* argv[]) {
 		case 'c':
 			strncpy(leavesInput, optarg, sizeof(leavesInput) - 1);
 			leavesInput[sizeof(leavesInput) - 1] = '\0';
+			break;
+		case 'k':
+			strncpy(colorsInput, optarg, sizeof(colorsInput) - 1);
+			colorsInput[sizeof(colorsInput) - 1] = '\0';
 			break;
 		case 'M':
 			if (strtold(optarg, NULL) != 0) conf.multiplier = strtod(optarg, NULL);
@@ -992,6 +1021,32 @@ int main(int argc, char* argv[]) {
 		if (conf.leavesSize < 100) conf.leaves[conf.leavesSize] = token;
 		token = strtok(NULL, ",");
 		conf.leavesSize++;
+	}
+
+	// delimit colors on "," and add each color to the colors[] list
+	token = strtok(colorsInput, ",");
+	for(int i = 0; i<4; i++) {
+		if (token == NULL) {
+			printf("error: too few color indices provided\n");
+			quit(&conf, &objects, 1);
+		}
+		char* temp;
+		errno = 0;
+
+		// parse each number
+		long parsed = strtol(token, &temp, 0);
+		if (temp == token || *temp != '\0' || errno == ERANGE || parsed < 0 || parsed >= 256) {
+			printf("error: invalid color index: '%s'\n", token);
+			quit(&conf, &objects, 1);
+		} else {
+			// add to list and continue
+			conf.colors[i] = parsed;
+			token = strtok(NULL, ",");
+		}
+	}
+	if (token != NULL) {
+		printf("error: too many color indices provided\n");
+		quit(&conf, &objects, 1);
 	}
 
 	if (conf.load)
