@@ -162,6 +162,28 @@ cbonsai -p
 
 Notice it uses the print mode, so that you can immediately start typing commands below the bonsai tree.
 
+### Infinite Mode With `fortune` or Similar
+
+If you want to run `cbonsai --infinite --message $(fortune)`, you'll quickly notice that `fortune` only runs once, and the same message is on each tree. What if you could run `fortune` each time, for a fresh message? Or some other program that gives you text?
+
+`cbonsai` does not include an "--exec" feature, but you can emulate this functionality by wrapping `cbonsai` in a bash script, like the one below:
+
+```bash
+#!/bin/bash
+WAITTIME=15
+
+clear
+
+while true; do
+	echo -ne "\e[?25l"
+	timeout -f "$WAITTIME" ./cbonsai -m "$(fortune)"    # --live also works
+	echo -ne "\e[?25l"
+	sleep 2
+done
+```
+
+This script uses an ANSI escape sequence to hide the cursor, then runs `cbonsai`, using `timeout` to kill the process after `$WAITTIME` seconds. Then, it sleeps for 2 seconds, and starts another tree.
+
 ## How it Works
 
 `cbonsai` starts by drawing the base onto the screen, which is basically just a static string of characters. To generate the actual tree, `cbonsai` uses a ~~bunch of if statements~~ homemade algorithm to decide how the tree should grow every step. Shoots to the left and right are generated as the main trunk grows. As any branch dies, it branches out into a bunch of leaves.
