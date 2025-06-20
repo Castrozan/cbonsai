@@ -38,7 +38,7 @@ struct config {
 	int targetBranchCount;
 
 	double timeWait;
-	double timeStep;
+	float timeStep;
 
 	char* message;
 	char* leaves[64];
@@ -861,7 +861,7 @@ int main(int argc, char* argv[]) {
 			conf.live = 1;
 			break;
 		case 't':
-			if (strtold(optarg, NULL) != 0) conf.timeStep = strtod(optarg, NULL);
+			if (strtof(optarg, NULL) != 0) conf.timeStep = strtof(optarg, NULL);
 			else {
 				printf("error: invalid step time: '%s'\n", optarg);
 				quit(&conf, &objects, 1);
