@@ -113,7 +113,7 @@ Options:
   -b, --base=INT         ascii-art plant base to use, 0 is none
   -c, --leaf=LIST        list of comma-delimited strings randomly chosen
                            for leaves
-  -k, --color=LIST       list of 4 comma-delimited color indices (0 to 256) for
+  -k, --color=LIST       list of 4 comma-delimited color indices (0-255) for
                            each of dark leaves, dark wood, light leaves, and
                            light wood, in that order [default: 2,3,10,11]
   -M, --multiplier=INT   branch multiplier; higher -> more

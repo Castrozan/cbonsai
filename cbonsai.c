@@ -150,7 +150,7 @@ void printHelp(void) {
 	        "  -b, --base=INT         ascii-art plant base to use, 0 is none\n"
 	        "  -c, --leaf=LIST        list of comma-delimited strings randomly chosen\n"
 	        "                           for leaves [default: &]\n"
-	        "  -k, --color=LIST       list of 4 comma-delimited color indices (0 to 256) for\n"
+	        "  -k, --color=LIST       list of 4 comma-delimited color indices (0-255) for\n"
 	        "                           each of dark leaves, dark wood, light leaves, and\n"
 	        "                           light wood, in that order [default: 2,3,10,11]\n"
 	        "  -M, --multiplier=INT   branch multiplier; higher -> more\n"
