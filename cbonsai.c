@@ -747,7 +747,12 @@ void printstdscr(void) {
 			else if (fg <= 7) printf("\033[3%him", fg);
 			else if (fg >= 8) printf("\033[9%him", fg - 8);
 
+			// print wchar
 			printf("%ls", wch);
+
+			// if we're on the last char in the row, print a newline
+			if (x == maxX - 1)
+				printf("\n");
 
 			short clen = wcslen(wch);
 			short cwidth = 0;
