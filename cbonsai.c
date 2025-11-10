@@ -19,6 +19,7 @@
 #define COLOR_LEAF_BRIGHT COLOR_PAIR(3)
 #define COLOR_LEAF_DARK COLOR_PAIR(1)
 #define COLOR_TEXT COLOR_PAIR(5)
+#define COLOR_ORNAMENT COLOR_PAIR(6)
 
 enum branchType {trunk, shootLeft, shootRight, dying, dead};
 
@@ -36,13 +37,17 @@ struct config {
 	int save;
 	int load;
 	int targetBranchCount;
+	int ornamentsSize;
+	int ornamentFrequency;
 
 	double timeWait;
 	float timeStep;
 
 	char* message;
 	char* leaves[64];
+	char* ornaments[64];
 	int colors[4];
+	int ornamentColor;
 	char* saveFile;
 	char* loadFile;
 };
@@ -150,6 +155,12 @@ void printHelp(void) {
 	        "  -b, --base=INT         ascii-art plant base to use, 0 is none\n"
 	        "  -c, --leaf=LIST        list of comma-delimited strings randomly chosen\n"
 	        "                           for leaves [default: &]\n"
+	        "  -o, --ornament=LIST    list of comma-delimited strings randomly chosen\n"
+	        "                           for ornaments [default: none]\n"
+	        "  -f, --frequency=INT    ornament frequency as a percentage (0-100)\n"
+	        "                           [default: 10]\n"
+	        "  -O, --ornament-color=INT color index (0-255) for ornaments\n"
+	        "                           [default: 9 (red)]\n"
 	        "  -k, --color=LIST       list of 4 comma-delimited color indices (0-255) for\n"
 	        "                           each of dark leaves, dark wood, light leaves, and\n"
 	        "                           light wood, in that order [default: 2,3,10,11]\n"
@@ -376,7 +387,7 @@ void setDeltas(enum branchType type, int life, int age, int multiplier, int *ret
 	*returnDy = dy;
 }
 
-char* chooseString(const struct config *conf, enum branchType type, int life, int dx, int dy) {
+char* chooseString(const struct config *conf, enum branchType type, int life, int dx, int dy, int *useOrnament) {
 	char* branchStr;
 
 	const unsigned int maxStrLen = 32;
@@ -385,6 +396,8 @@ char* chooseString(const struct config *conf, enum branchType type, int life, in
 	strcpy(branchStr, "?");	// fallback character
 
 	if (life < 4) type = dying;
+
+	*useOrnament = 0;
 
 	switch(type) {
 	case trunk:
@@ -409,8 +422,17 @@ char* chooseString(const struct config *conf, enum branchType type, int life, in
 		break;
 	case dying:
 	case dead:
-		strncpy(branchStr, conf->leaves[rand() % conf->leavesSize], maxStrLen - 1);
-		branchStr[maxStrLen - 1] = '\0';
+		// Check if we should use an ornament instead of a leaf
+		if (conf->ornamentsSize > 0 && conf->ornamentFrequency > 0 && 
+		    (rand() % 100) < conf->ornamentFrequency) {
+			strncpy(branchStr, conf->ornaments[rand() % conf->ornamentsSize], maxStrLen - 1);
+			branchStr[maxStrLen - 1] = '\0';
+			*useOrnament = 1;
+		} else {
+			strncpy(branchStr, conf->leaves[rand() % conf->leavesSize], maxStrLen - 1);
+			branchStr[maxStrLen - 1] = '\0';
+		}
+		break;
 	}
 
 	return branchStr;
@@ -491,7 +513,16 @@ void branch(struct config *conf, struct ncursesObjects *objects, struct counters
 		chooseColor(type, objects->treeWin);
 
 		// choose string to use for this branch
-		char *branchStr = chooseString(conf, type, life, dx, dy);
+		int useOrnament = 0;
+		char *branchStr = chooseString(conf, type, life, dx, dy, &useOrnament);
+
+		// if it's an ornament, override the color
+		if (useOrnament) {
+			wattroff(objects->treeWin, A_BOLD);
+			wattroff(objects->treeWin, COLOR_LEAF_BRIGHT);
+			wattroff(objects->treeWin, COLOR_LEAF_DARK);
+			wattron(objects->treeWin, A_BOLD | COLOR_ORNAMENT);
+		}
 
 		// grab wide character from branchStr
 		wchar_t wc = 0;
@@ -685,6 +716,14 @@ void init(const struct config *conf, struct ncursesObjects *objects) {
 		else {
 			init_pair(5, 8, bg);
 		}
+
+		// initialize COLOR_ORNAMENT pair
+		int ornament_color = conf->ornamentColor;
+		if (COLORS < 256) {
+			init_pair(6, ornament_color % 8, bg);
+		} else {
+			init_pair(6, ornament_color, bg);
+		}
 	} else {
 		printf("%s", "Warning: terminal does not have color support.\n");
 	}
@@ -820,13 +859,17 @@ int main(int argc, char* argv[]) {
 		.save = 0,
 		.load = 0,
 		.targetBranchCount = 0,
+		.ornamentsSize = 0,
+		.ornamentFrequency = 10,
 
 		.timeWait = 4,
 		.timeStep = 0.03,
 
 		.message = NULL,
 		.leaves = {0},
+		.ornaments = {0},
 		.colors = {0, 0, 0, 0},
+		.ornamentColor = 9,  // default red
 		.saveFile = createDefaultCachePath(),
 		.loadFile = createDefaultCachePath(),
 	};
@@ -840,6 +883,9 @@ int main(int argc, char* argv[]) {
 		{"message", required_argument, NULL, 'm'},
 		{"base", required_argument, NULL, 'b'},
 		{"leaf", required_argument, NULL, 'c'},
+		{"ornament", required_argument, NULL, 'o'},
+		{"frequency", required_argument, NULL, 'f'},
+		{"ornament-color", required_argument, NULL, 'O'},
 		{"colors", required_argument, NULL, 'k'},
 		{"multiplier", required_argument, NULL, 'M'},
 		{"life", required_argument, NULL, 'L'},
@@ -856,11 +902,12 @@ int main(int argc, char* argv[]) {
 
 	char leavesInput[128] = "&";
 	char colorsInput[128] = "2,3,10,11";
+	char ornamentsInput[128] = "";
 
 	// parse arguments
 	int option_index = 0;
 	int c;
-	while ((c = getopt_long(argc, argv, ":lt:iw:Sm:b:c:k:M:L:ps:C:W:vh", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, ":lt:iw:Sm:b:c:o:f:O:k:M:L:ps:C:W:vh", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'l':
 			conf.live = 1;
@@ -903,13 +950,13 @@ int main(int argc, char* argv[]) {
 			conf.message = optarg;
 			break;
 		case 'b':
-                        /* 0 can legitimately be returned, so we cannot check wether
-                           strtold(optarg, NULL) != 0.  We need to set errno to zero
-                           before the conversion attempt, and check it it changed
-                           afterwards. */
-                        errno = 0;
-                        strtold(optarg, NULL);
-                        if (!errno) conf.baseType = strtod(optarg, NULL);
+			/* 0 can legitimately be returned, so we cannot check wether
+			   strtold(optarg, NULL) != 0.  We need to set errno to zero
+			   before the conversion attempt, and check it it changed
+			   afterwards. */
+			errno = 0;
+			strtold(optarg, NULL);
+			if (!errno) conf.baseType = strtod(optarg, NULL);
 			else {
 				printf("error: invalid base index: '%s'\n", optarg);
 				quit(&conf, &objects, 1);
@@ -918,6 +965,32 @@ int main(int argc, char* argv[]) {
 		case 'c':
 			strncpy(leavesInput, optarg, sizeof(leavesInput) - 1);
 			leavesInput[sizeof(leavesInput) - 1] = '\0';
+			break;
+		case 'o':
+			strncpy(ornamentsInput, optarg, sizeof(ornamentsInput) - 1);
+			ornamentsInput[sizeof(ornamentsInput) - 1] = '\0';
+			break;
+		case 'f':
+			if (strtold(optarg, NULL) != 0) conf.ornamentFrequency = strtod(optarg, NULL);
+			else {
+				printf("error: invalid ornament frequency: '%s'\n", optarg);
+				quit(&conf, &objects, 1);
+			}
+			if (conf.ornamentFrequency < 0 || conf.ornamentFrequency > 100) {
+				printf("error: ornament frequency must be between 0 and 100: '%s'\n", optarg);
+				quit(&conf, &objects, 1);
+			}
+			break;
+		case 'O':
+			if (strtold(optarg, NULL) != 0) conf.ornamentColor = strtod(optarg, NULL);
+			else {
+				printf("error: invalid ornament color: '%s'\n", optarg);
+				quit(&conf, &objects, 1);
+			}
+			if (conf.ornamentColor < 0 || conf.ornamentColor > 255) {
+				printf("error: ornament color must be between 0 and 255: '%s'\n", optarg);
+				quit(&conf, &objects, 1);
+			}
 			break;
 		case 'k':
 			strncpy(colorsInput, optarg, sizeof(colorsInput) - 1);
@@ -1026,6 +1099,16 @@ int main(int argc, char* argv[]) {
 		if (conf.leavesSize < 100) conf.leaves[conf.leavesSize] = token;
 		token = strtok(NULL, ",");
 		conf.leavesSize++;
+	}
+
+	// delimit ornaments on "," and add each token to the ornaments[] list
+	if (strlen(ornamentsInput) > 0) {
+		token = strtok(ornamentsInput, ",");
+		while (token != NULL) {
+			if (conf.ornamentsSize < 64) conf.ornaments[conf.ornamentsSize] = token;
+			token = strtok(NULL, ",");
+			conf.ornamentsSize++;
+		}
 	}
 
 	// delimit colors on "," and add each color to the colors[] list
