@@ -1,8 +1,25 @@
-# cbonsai
+# cbonsai 🎄
 
-<img src="https://i.imgur.com/rnqJx3P.gif" align="right" width="400px">
+<img src="image.png" align="right" width="400px">
 
 `cbonsai` is a bonsai tree generator, written in `C` using `ncurses`. It intelligently creates, colors, and positions a bonsai tree, and is entirely configurable via CLI options-- see [usage](#usage). There are 2 modes of operation: `static` (see finished bonsai tree), and `live` (see growth step-by-step).
+
+## 🎄 Christmas Edition Fork
+
+**This is a fork of the original [cbonsai by jallbrit](https://gitlab.com/jallbrit/cbonsai)** with added ornament features! 
+
+This version adds Christmas-themed ornaments to your bonsai trees, perfect for the holiday season. You can now decorate your terminal trees with customizable ornaments, adjustable frequency, and custom colors.
+
+**New Features:**
+- `-o, --ornament=LIST` - Add custom ornament characters (like `*`, `@`, `O`, `🎄`, `⭐`, etc.)
+- `-f, --frequency=INT` - Control ornament frequency (0-100%)
+- `-O, --ornament-color=INT` - Set custom ornament colors
+
+Try it: `cbonsai -l -o "🎄,⭐,🎁,🔔" -f 25 -O 9`
+
+**Repository:** [https://github.com/Castrozan/cbonsai](https://github.com/Castrozan/cbonsai)
+
+---
 
 `cbonsai` is always looking for ideas for improvement- feel free to open an issue if you've got an idea or a bug!
 
@@ -49,6 +66,33 @@ You may also install `cbonsai` using [MacPorts](https://www.macports.org). Simpl
 ```bash
 sudo port selfupdate
 sudo port install cbonsai
+```
+
+### Nix / NixOS
+
+You can build and run `cbonsai` using the Nix flake:
+
+```bash
+# Run directly without installing
+nix run github:jallbrit/cbonsai
+
+# Or run from the local repository
+cd cbonsai
+nix run .
+
+# Build and install to your profile
+nix profile install github:jallbrit/cbonsai
+
+# Add to your NixOS configuration or home-manager
+# In your configuration.nix or home.nix:
+{
+  environment.systemPackages = [  # or home.packages for home-manager
+    (pkgs.callPackage ./path/to/cbonsai {})
+  ];
+}
+
+# Or use it in a development shell
+nix develop
 ```
 
 ### Manual
@@ -192,6 +236,10 @@ This script uses an ANSI escape sequence to hide the cursor, then runs `cbonsai`
 
 The algorithm is tweaked to look best at the default size, so larger sized trees may not be as bonsai-like.
 
-## Inspiration
+## Inspiration & Credits
 
-This project wouldn't be here if it weren't for its *roots*! `cbonsai` is a newer version of [bonsai.sh](https://gitlab.com/jallbrit/bonsai.sh), which was written in `bash` and was itself a port of [this bonsai tree generator](https://avelican.github.io/bonsai/) written in `javascript`.
+This project wouldn't be here if it weren't for its *roots*! 
+
+**This Christmas Edition fork** is based on the original [cbonsai by jallbrit](https://gitlab.com/jallbrit/cbonsai), which is a newer version of [bonsai.sh](https://gitlab.com/jallbrit/bonsai.sh), which was written in `bash` and was itself a port of [this bonsai tree generator](https://avelican.github.io/bonsai/) written in `javascript`.
+
+All credit for the core bonsai generation algorithm and original codebase goes to [jallbrit](https://gitlab.com/jallbrit) and the original contributors. This fork simply adds festive ornament decorations to bring some holiday cheer to your terminal! 🎄✨
